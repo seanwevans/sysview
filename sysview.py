@@ -199,7 +199,7 @@ class SyscallMonitor:
                                 event=self.b.get_syscall_fnname(alias),
                                 fn_name=f"trace_{name}_entry"
                             )
-                        except Exception as e:
+                        except Exception:
                             pass
                 
             except Exception as e:
@@ -270,6 +270,9 @@ class CursesDisplay:
         curses.curs_set(0)
         curses.start_color()
         curses.use_default_colors()
+        
+        # shades from empty to full: 0/8 … 8/8
+        self.block_chars = [' ', '▁','▂','▃','▄','▅','▆','▇','█']
                 
         for syscall in self.monitor.syscalls:
             color_index = syscall["color"]
@@ -297,7 +300,7 @@ class CursesDisplay:
     def display_live_view(self, stdscr, current_rates):
         """Display live syscall monitoring view"""
         max_y, max_x = stdscr.getmaxyx()
-        hist_height = 3
+        hist_height = 1
         hist_width = min(self.monitor.history_size, max_x - 25)
         runtime = self.monitor.get_runtime()
         runtime_str = self.format_time(runtime)
@@ -330,30 +333,17 @@ class CursesDisplay:
                 stdscr.addstr(y_pos, hist_width + 20, scale_label, curses.A_DIM)
             y_pos += 1
             
-            for i, hist_rate in enumerate(list(self.monitor.history[name])[-hist_width:]):
-                if i < hist_width:
-                    this_max_rate = max_rates[name]
-                    if hist_rate > 0 and this_max_rate > 0:
-                        bar_height = max(
-                            1,
-                            min(
-                                hist_height,
-                                int((hist_rate / this_max_rate) * hist_height),
-                            ),
-                        )
-                    else:
-                        bar_height = 0
-                    
-                    for j in range(bar_height):
-                        if y_pos + hist_height - j - 1 < max_y:
-                            stdscr.addch(
-                                y_pos + hist_height - j - 1,
-                                i + 20,
-                                "▓",
-                                curses.color_pair(color),
-                            )
-            
-            y_pos += hist_height + 1
+            # single-row, 8-level Unicode block histogram
+            levels = len(self.block_chars) - 1
+            hist_line_y = y_pos
+            history_slice = list(self.monitor.history[name])[-hist_width:]
+            for i, hist_rate in enumerate(history_slice):
+                ratio = hist_rate / this_max_rate if this_max_rate > 0 else 0
+                lvl = int(ratio * levels + 0.5)
+                lvl = max(0, min(levels, lvl))
+                ch = self.block_chars[lvl]
+                stdscr.addstr(hist_line_y, i + 20, ch, curses.color_pair(color))
+            y_pos += 2  # one for the blocks, one for spacing
             
             if y_pos + hist_height + 2 >= max_y:
                 break
@@ -556,3 +546,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
