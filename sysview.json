@@ -1,0 +1,978 @@
+{
+  "syscalls": {
+    "read": {
+      "name": "read",
+      "color": 1,
+      "color_def": 1,
+      "desc": "Read from a file descriptor (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "write": {
+      "name": "write",
+      "color": 2,
+      "color_def": 2,
+      "desc": "Write to a file descriptor (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "open": {
+      "name": "open",
+      "color": 3,
+      "color_def": 3,
+      "desc": "Open a file or device (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "openat": {
+      "name": "openat",
+      "color": 4,
+      "color_def": 4,
+      "desc": "Open a file relative to a directory file descriptor (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "close": {
+      "name": "close",
+      "color": 5,
+      "color_def": 5,
+      "desc": "Close a file descriptor (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "stat": {
+      "name": "stat",
+      "color": 6,
+      "color_def": 6,
+      "desc": "Get file status (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "fstat": {
+      "name": "fstat",
+      "color": 7,
+      "color_def": 7,
+      "desc": "Get file status by file descriptor (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "lstat": {
+      "name": "lstat",
+      "color": 8,
+      "color_def": 8,
+      "desc": "Get file status, don't follow symlinks (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "poll": {
+      "name": "poll",
+      "color": 9,
+      "color_def": 9,
+      "desc": "Wait for events on file descriptors (file)",
+      "enabled": true,
+      "category": "file",
+      "aliases": [
+        "select",
+        "epoll_wait",
+        "epoll_pwait"
+      ]
+    },
+    "lseek": {
+      "name": "lseek",
+      "color": 10,
+      "color_def": 10,
+      "desc": "Reposition read/write file offset (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "mmap": {
+      "name": "mmap",
+      "color": 11,
+      "color_def": 11,
+      "desc": "Map files or devices into memory (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "mprotect": {
+      "name": "mprotect",
+      "color": 12,
+      "color_def": 12,
+      "desc": "Set protection on a region of memory (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "munmap": {
+      "name": "munmap",
+      "color": 13,
+      "color_def": 13,
+      "desc": "Unmap files or devices from memory (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "truncate": {
+      "name": "truncate",
+      "color": 14,
+      "color_def": 14,
+      "desc": "Truncate a file to a specified length (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "ftruncate": {
+      "name": "ftruncate",
+      "color": 15,
+      "color_def": 15,
+      "desc": "Truncate a file to a specified length by descriptor (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "chmod": {
+      "name": "chmod",
+      "color": 16,
+      "color_def": 16,
+      "desc": "Change file mode bits (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "chown": {
+      "name": "chown",
+      "color": 17,
+      "color_def": 17,
+      "desc": "Change file owner and group (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "lchown": {
+      "name": "lchown",
+      "color": 18,
+      "color_def": 18,
+      "desc": "Change owner and group of a symbolic link (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "umask": {
+      "name": "umask",
+      "color": 19,
+      "color_def": 19,
+      "desc": "Set file mode creation mask (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "fcntl": {
+      "name": "fcntl",
+      "color": 20,
+      "color_def": 20,
+      "desc": "Manipulate file descriptor (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "dup": {
+      "name": "dup",
+      "color": 21,
+      "color_def": 1,
+      "desc": "Duplicate a file descriptor (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "dup2": {
+      "name": "dup2",
+      "color": 22,
+      "color_def": 2,
+      "desc": "Duplicate a file descriptor to a specific number (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "pipe": {
+      "name": "pipe",
+      "color": 23,
+      "color_def": 3,
+      "desc": "Create a pipe (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "ioctl": {
+      "name": "ioctl",
+      "color": 24,
+      "color_def": 4,
+      "desc": "Control device (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "access": {
+      "name": "access",
+      "color": 25,
+      "color_def": 5,
+      "desc": "Check user's permissions for a file (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "link": {
+      "name": "link",
+      "color": 26,
+      "color_def": 6,
+      "desc": "Create a hard link to a file (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "unlink": {
+      "name": "unlink",
+      "color": 27,
+      "color_def": 7,
+      "desc": "Delete a name and possibly the file it refers to (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "symlink": {
+      "name": "symlink",
+      "color": 28,
+      "color_def": 8,
+      "desc": "Create a symbolic link (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "readlink": {
+      "name": "readlink",
+      "color": 29,
+      "color_def": 9,
+      "desc": "Read value of a symbolic link (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "mkdir": {
+      "name": "mkdir",
+      "color": 30,
+      "color_def": 10,
+      "desc": "Create a directory (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "rmdir": {
+      "name": "rmdir",
+      "color": 31,
+      "color_def": 11,
+      "desc": "Delete a directory (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "rename": {
+      "name": "rename",
+      "color": 32,
+      "color_def": 12,
+      "desc": "Change the name or location of a file (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "getcwd": {
+      "name": "getcwd",
+      "color": 33,
+      "color_def": 13,
+      "desc": "Get current working directory (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "chdir": {
+      "name": "chdir",
+      "color": 34,
+      "color_def": 14,
+      "desc": "Change working directory (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "fchdir": {
+      "name": "fchdir",
+      "color": 35,
+      "color_def": 15,
+      "desc": "Change working directory by descriptor (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "fsync": {
+      "name": "fsync",
+      "color": 36,
+      "color_def": 16,
+      "desc": "Synchronize a file's in-core state with storage (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "fdatasync": {
+      "name": "fdatasync",
+      "color": 37,
+      "color_def": 17,
+      "desc": "Synchronize a file's data with storage (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "sync": {
+      "name": "sync",
+      "color": 38,
+      "color_def": 18,
+      "desc": "Synchronize cached writes to persistent storage (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "flock": {
+      "name": "flock",
+      "color": 39,
+      "color_def": 19,
+      "desc": "Apply or remove an advisory lock on an open file (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "readv": {
+      "name": "readv",
+      "color": 40,
+      "color_def": 20,
+      "desc": "Read data into multiple buffers (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "writev": {
+      "name": "writev",
+      "color": 41,
+      "color_def": 1,
+      "desc": "Write data from multiple buffers (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "sendfile": {
+      "name": "sendfile",
+      "color": 42,
+      "color_def": 2,
+      "desc": "Transfer data between file descriptors (file)",
+      "enabled": true,
+      "category": "file"
+    },
+    "brk": {
+      "name": "brk",
+      "color": 43,
+      "color_def": 30,
+      "desc": "Change data segment size (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "sbrk": {
+      "name": "sbrk",
+      "color": 44,
+      "color_def": 31,
+      "desc": "Change data segment size (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "madvise": {
+      "name": "madvise",
+      "color": 45,
+      "color_def": 32,
+      "desc": "Give advice about use of memory (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "mincore": {
+      "name": "mincore",
+      "color": 46,
+      "color_def": 33,
+      "desc": "Determine whether pages are in core (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "mremap": {
+      "name": "mremap",
+      "color": 47,
+      "color_def": 34,
+      "desc": "Remap a virtual memory address (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "msync": {
+      "name": "msync",
+      "color": 48,
+      "color_def": 35,
+      "desc": "Synchronize a file with a memory map (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "mlock": {
+      "name": "mlock",
+      "color": 49,
+      "color_def": 36,
+      "desc": "Lock memory (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "munlock": {
+      "name": "munlock",
+      "color": 50,
+      "color_def": 37,
+      "desc": "Unlock memory (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "mlockall": {
+      "name": "mlockall",
+      "color": 51,
+      "color_def": 38,
+      "desc": "Lock all of the calling process's virtual address space (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "munlockall": {
+      "name": "munlockall",
+      "color": 52,
+      "color_def": 39,
+      "desc": "Unlock all memory (memory)",
+      "enabled": true,
+      "category": "memory"
+    },
+    "fork": {
+      "name": "fork",
+      "color": 53,
+      "color_def": 160,
+      "desc": "Create a child process (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "vfork": {
+      "name": "vfork",
+      "color": 54,
+      "color_def": 161,
+      "desc": "Create a child process and block parent (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "clone": {
+      "name": "clone",
+      "color": 55,
+      "color_def": 162,
+      "desc": "Create a child process/thread (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "execve": {
+      "name": "execve",
+      "color": 56,
+      "color_def": 163,
+      "desc": "Execute program (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "exit": {
+      "name": "exit",
+      "color": 57,
+      "color_def": 164,
+      "desc": "Terminate the calling process (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "exit_group": {
+      "name": "exit_group",
+      "color": 58,
+      "color_def": 165,
+      "desc": "Exit all threads in a process (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "wait4": {
+      "name": "wait4",
+      "color": 59,
+      "color_def": 166,
+      "desc": "Wait for process to change state (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "waitid": {
+      "name": "waitid",
+      "color": 60,
+      "color_def": 167,
+      "desc": "Wait for process to change state (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "kill": {
+      "name": "kill",
+      "color": 61,
+      "color_def": 168,
+      "desc": "Send signal to a process (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "rt_sigaction": {
+      "name": "rt_sigaction",
+      "color": 62,
+      "color_def": 169,
+      "desc": "Examine and change a signal action (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "rt_sigprocmask": {
+      "name": "rt_sigprocmask",
+      "color": 63,
+      "color_def": 170,
+      "desc": "Examine and change blocked signals (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "rt_sigreturn": {
+      "name": "rt_sigreturn",
+      "color": 64,
+      "color_def": 171,
+      "desc": "Return from signal handler (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "rt_sigsuspend": {
+      "name": "rt_sigsuspend",
+      "color": 65,
+      "color_def": 172,
+      "desc": "Wait for a signal (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "sigaltstack": {
+      "name": "sigaltstack",
+      "color": 66,
+      "color_def": 173,
+      "desc": "Set/get signal stack context (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "getpid": {
+      "name": "getpid",
+      "color": 67,
+      "color_def": 174,
+      "desc": "Get process identification (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "getppid": {
+      "name": "getppid",
+      "color": 68,
+      "color_def": 175,
+      "desc": "Get parent process identification (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "getpgid": {
+      "name": "getpgid",
+      "color": 69,
+      "color_def": 176,
+      "desc": "Get process group ID (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "setpgid": {
+      "name": "setpgid",
+      "color": 70,
+      "color_def": 177,
+      "desc": "Set process group ID (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "getpgrp": {
+      "name": "getpgrp",
+      "color": 71,
+      "color_def": 178,
+      "desc": "Get process group (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "getsid": {
+      "name": "getsid",
+      "color": 72,
+      "color_def": 179,
+      "desc": "Get session ID (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "setsid": {
+      "name": "setsid",
+      "color": 73,
+      "color_def": 160,
+      "desc": "Create session and set process group ID (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "socket": {
+      "name": "socket",
+      "color": 105,
+      "color_def": 70,
+      "desc": "Create an endpoint for communication (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "socketpair": {
+      "name": "socketpair",
+      "color": 106,
+      "color_def": 71,
+      "desc": "Create a pair of connected sockets (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "bind": {
+      "name": "bind",
+      "color": 107,
+      "color_def": 72,
+      "desc": "Bind a name to a socket (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "listen": {
+      "name": "listen",
+      "color": 108,
+      "color_def": 73,
+      "desc": "Listen for connections on a socket (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "accept": {
+      "name": "accept",
+      "color": 109,
+      "color_def": 74,
+      "desc": "Accept a connection on a socket (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "accept4": {
+      "name": "accept4",
+      "color": 110,
+      "color_def": 75,
+      "desc": "Accept a connection on a socket with flags (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "connect": {
+      "name": "connect",
+      "color": 111,
+      "color_def": 76,
+      "desc": "Initiate a connection on a socket (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "getsockname": {
+      "name": "getsockname",
+      "color": 112,
+      "color_def": 77,
+      "desc": "Get socket name (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "getpeername": {
+      "name": "getpeername",
+      "color": 113,
+      "color_def": 78,
+      "desc": "Get name of connected peer socket (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "sendto": {
+      "name": "sendto",
+      "color": 114,
+      "color_def": 79,
+      "desc": "Send a message on a socket (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "recvfrom": {
+      "name": "recvfrom",
+      "color": 115,
+      "color_def": 80,
+      "desc": "Receive a message from a socket (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "setsockopt": {
+      "name": "setsockopt",
+      "color": 116,
+      "color_def": 81,
+      "desc": "Set options on sockets (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "getsockopt": {
+      "name": "getsockopt",
+      "color": 117,
+      "color_def": 82,
+      "desc": "Get options on sockets (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "shutdown": {
+      "name": "shutdown",
+      "color": 118,
+      "color_def": 83,
+      "desc": "Shut down part of a full-duplex connection (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "sendmsg": {
+      "name": "sendmsg",
+      "color": 119,
+      "color_def": 84,
+      "desc": "Send a message on a socket (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "recvmsg": {
+      "name": "recvmsg",
+      "color": 120,
+      "color_def": 85,
+      "desc": "Receive a message from a socket (network)",
+      "enabled": true,
+      "category": "network"
+    },
+    "futex": {
+      "name": "futex",
+      "color": 135,
+      "color_def": 211,
+      "desc": "Fast user-space locking (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "nanosleep": {
+      "name": "nanosleep",
+      "color": 137,
+      "color_def": 230,
+      "desc": "High-resolution sleep (time)",
+      "enabled": true,
+      "category": "time"
+    },
+    "clock_gettime": {
+      "name": "clock_gettime",
+      "color": 144,
+      "color_def": 237,
+      "desc": "Get time from specified clock (time)",
+      "enabled": true,
+      "category": "time"
+    },
+    "clock_settime": {
+      "name": "clock_settime",
+      "color": 145,
+      "color_def": 238,
+      "desc": "Set time of specified clock (time)",
+      "enabled": true,
+      "category": "time"
+    },
+    "clock_getres": {
+      "name": "clock_getres",
+      "color": 146,
+      "color_def": 239,
+      "desc": "Get resolution of specified clock (time)",
+      "enabled": true,
+      "category": "time"
+    },
+    "clock_nanosleep": {
+      "name": "clock_nanosleep",
+      "color": 147,
+      "color_def": 240,
+      "desc": "High-resolution sleep with specifiable clock (time)",
+      "enabled": true,
+      "category": "time"
+    },
+    "sched_yield": {
+      "name": "sched_yield",
+      "color": 86,
+      "color_def": 173,
+      "desc": "Yield the processor (process)",
+      "enabled": true,
+      "category": "process"
+    },
+    "gettimeofday": {
+      "name": "gettimeofday",
+      "color": 148,
+      "color_def": 241,
+      "desc": "Get time (time)",
+      "enabled": true,
+      "category": "time"
+    },
+    "settimeofday": {
+      "name": "settimeofday",
+      "color": 149,
+      "color_def": 242,
+      "desc": "Set time (time)",
+      "enabled": true,
+      "category": "time"
+    },
+    "time": {
+      "name": "time",
+      "color": 150,
+      "color_def": 243,
+      "desc": "Get time in seconds (time)",
+      "enabled": true,
+      "category": "time"
+    },
+    "semget": {
+      "name": "semget",
+      "color": 124,
+      "color_def": 200,
+      "desc": "Get a System V semaphore set identifier (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "semop": {
+      "name": "semop",
+      "color": 125,
+      "color_def": 201,
+      "desc": "Semaphore operations (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "semctl": {
+      "name": "semctl",
+      "color": 126,
+      "color_def": 202,
+      "desc": "Semaphore control operations (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "shmget": {
+      "name": "shmget",
+      "color": 127,
+      "color_def": 203,
+      "desc": "Get a System V shared memory segment (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "shmat": {
+      "name": "shmat",
+      "color": 128,
+      "color_def": 204,
+      "desc": "Attach a System V shared memory segment (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "shmdt": {
+      "name": "shmdt",
+      "color": 129,
+      "color_def": 205,
+      "desc": "Detach a System V shared memory segment (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "shmctl": {
+      "name": "shmctl",
+      "color": 130,
+      "color_def": 206,
+      "desc": "System V shared memory control (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "msgget": {
+      "name": "msgget",
+      "color": 131,
+      "color_def": 207,
+      "desc": "Get a System V message queue identifier (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "msgsnd": {
+      "name": "msgsnd",
+      "color": 132,
+      "color_def": 208,
+      "desc": "Send message to a System V message queue (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "msgrcv": {
+      "name": "msgrcv",
+      "color": 133,
+      "color_def": 209,
+      "desc": "Receive message from a System V message queue (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "msgctl": {
+      "name": "msgctl",
+      "color": 134,
+      "color_def": 210,
+      "desc": "System V message control operations (ipc)",
+      "enabled": true,
+      "category": "ipc"
+    },
+    "uname": {
+      "name": "uname",
+      "color": 153,
+      "color_def": 250,
+      "desc": "Get name and information about current kernel (other)",
+      "enabled": true,
+      "category": "other"
+    },
+    "getrlimit": {
+      "name": "getrlimit",
+      "color": 154,
+      "color_def": 251,
+      "desc": "Get resource limits (other)",
+      "enabled": true,
+      "category": "other"
+    },
+    "setrlimit": {
+      "name": "setrlimit",
+      "color": 155,
+      "color_def": 252,
+      "desc": "Set resource limits (other)",
+      "enabled": true,
+      "category": "other"
+    },
+    "getrusage": {
+      "name": "getrusage",
+      "color": 156,
+      "color_def": 253,
+      "desc": "Get resource usage (other)",
+      "enabled": true,
+      "category": "other"
+    },
+    "chroot": {
+      "name": "chroot",
+      "color": 180,
+      "color_def": 257,
+      "desc": "Change root directory (other)",
+      "enabled": true,
+      "category": "other"
+    },
+    "getrandom": {
+      "name": "getrandom", 
+      "color": 165,
+      "color_def": 262,
+      "desc": "Obtain a series of random bytes (other)",
+      "enabled": true,
+      "category": "other"
+    },
+    "statfs": {
+      "name": "statfs",
+      "color": 161,
+      "color_def": 258,
+      "desc": "Get file system statistics (other)",
+      "enabled": true,
+      "category": "other"
+    },
+    "fstatfs": {
+      "name": "fstatfs",
+      "color": 162,
+      "color_def": 259,
+      "desc": "Get file system statistics (other)",
+      "enabled": true,
+      "category": "other"
+    },
+    "mount": {
+      "name": "mount",
+      "color": 171,
+      "color_def": 268,
+      "desc": "Mount filesystem (other)",
+      "enabled": true,
+      "category": "other"
+    },
+    "umount2": {
+      "name": "umount2",
+      "color": 172,
+      "color_def": 269,
+      "desc": "Unmount filesystem (other)",
+      "enabled": true,
+      "category": "other"
+    }
+  },
+  "categories": {
+    "file": "File Operations",
+    "memory": "Memory Management",
+    "process": "Process Control",
+    "network": "Network Operations",
+    "ipc": "Inter-Process Communication",
+    "time": "Time Functions",
+    "other": "Miscellaneous Syscalls"
+  }
+}
