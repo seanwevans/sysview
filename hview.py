@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 # hview.py — realtime heap flamegraph (bytes-live per call-stack)
 
-import argparse, curses, signal, time, sys, os, hashlib, subprocess, pathlib
-from bcc import BPF, PerfType, PerfSWConfig  # only for constants
+import argparse
+import curses
+import signal
+import time
+import sys
+import hashlib
+from bcc import BPF
 
 # ───── CLI ──────────────────────────────────────────────────────────
 ap = argparse.ArgumentParser(description="Realtime heap flame graph via eBPF")
