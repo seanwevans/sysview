@@ -20,7 +20,9 @@ def colour(name: str | bytes) -> int:
         return 0
     if isinstance(name, bytes):
         name = name.decode("utf-8", "replace")
-    return PALETTE[int(hashlib.md5(name.encode()).hexdigest(), 16) % len(PALETTE)]
+    return PALETTE[
+        int(hashlib.md5(name.encode()).hexdigest(), 16) % len(PALETTE)
+    ]
 
 
 def sym(addr: int, pid: int, b: BPF) -> str:
@@ -51,7 +53,10 @@ def tui(scr):
     argp = argparse.ArgumentParser(description="Realtime heap flame-graph")
     argp.add_argument("--pid", required=True, type=int, help="target PID")
     argp.add_argument(
-        "--win", default=1.0, type=float, help="UI refresh seconds; 0 = fastest"
+        "--win",
+        default=1.0,
+        type=float,
+        help="UI refresh seconds; 0 = fastest",
     )
     argp.add_argument(
         "--margin", default=2, type=int, help="columns to keep blank on right"
@@ -124,12 +129,23 @@ def tui(scr):
     # attach alloc/free probes on the *target’s* libc
     for sym_name in ("malloc", "calloc", "realloc"):
         b.attach_uprobe(
-            name=str(libc), sym=sym_name, pid=args.pid, fn_name="alloc_enter"
+            name=str(libc),
+            sym=sym_name,
+            pid=args.pid,
+            fn_name="alloc_enter",
         )
         b.attach_uretprobe(
-            name=str(libc), sym=sym_name, pid=args.pid, fn_name="alloc_ret"
+            name=str(libc),
+            sym=sym_name,
+            pid=args.pid,
+            fn_name="alloc_ret",
         )
-    b.attach_uprobe(name=str(libc), sym="free", pid=args.pid, fn_name="free_enter")
+    b.attach_uprobe(
+        name=str(libc),
+        sym="free",
+        pid=args.pid,
+        fn_name="free_enter",
+    )
 
     # ─── curses palette init ─────────────────────────────────────────
     curses.curs_set(0)
@@ -170,7 +186,13 @@ def tui(scr):
                 width = (
                     remaining
                     if idx == len(data) - 1
-                    else max(1, min(remaining, int(bytes_live / total * graph_w)))
+                    else max(
+                        1,
+                        min(
+                            remaining,
+                            int(bytes_live / total * graph_w),
+                        ),
+                    )
                 )
                 remaining -= width
 
@@ -196,8 +218,10 @@ def tui(scr):
             scr.addstr(
                 0,
                 0,
-                f"PID {args.pid} | heap {total_str} | {mode} win={args.win:.1f}s "
-                f"| q:quit",
+                (
+                    f"PID {args.pid} | heap {total_str} | {mode} "
+                    f"win={args.win:.1f}s | q:quit"
+                ),
             )
             scr.refresh()
 

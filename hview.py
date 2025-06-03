@@ -15,9 +15,17 @@ ap.add_argument("--pid", required=True, type=int, help="target PID")
 ap.add_argument(
     "--win", default=1.0, type=float, help="UI refresh seconds; 0 = fastest"
 )
-ap.add_argument("--margin", default=2, type=int, help="blank cols at right edge")
 ap.add_argument(
-    "--windowed", "-w", action="store_true", help="rolling window instead of cumulative"
+    "--margin",
+    default=2,
+    type=int,
+    help="blank cols at right edge",
+)
+ap.add_argument(
+    "--windowed",
+    "-w",
+    action="store_true",
+    help="rolling window instead of cumulative",
 )
 args = ap.parse_args()
 
@@ -99,12 +107,23 @@ b = BPF(text=bpf_src)
 # attach to target libc’s malloc(), calloc(), realloc(), free()
 for sym in ("malloc", "calloc", "realloc"):
     b.attach_uprobe(
-        name=libc_path, sym=sym, pid=target_pid, fn_name="trace_alloc_enter"
+        name=libc_path,
+        sym=sym,
+        pid=target_pid,
+        fn_name="trace_alloc_enter",
     )
     b.attach_uretprobe(
-        name=libc_path, sym=sym, pid=target_pid, fn_name="trace_alloc_return"
+        name=libc_path,
+        sym=sym,
+        pid=target_pid,
+        fn_name="trace_alloc_return",
     )
-b.attach_uprobe(name=libc_path, sym="free", pid=target_pid, fn_name="trace_free")
+b.attach_uprobe(
+    name=libc_path,
+    sym="free",
+    pid=target_pid,
+    fn_name="trace_free",
+)
 
 stacks = b.get_table("stacks")
 counts = b.get_table("counts")
@@ -118,7 +137,9 @@ def colour(name):
         return 0
     if isinstance(name, bytes):
         name = name.decode("utf-8", "replace")
-    return PALETTE[int(hashlib.md5(name.encode()).hexdigest(), 16) % len(PALETTE)]
+    return PALETTE[
+        int(hashlib.md5(name.encode()).hexdigest(), 16) % len(PALETTE)
+    ]
 
 
 def sym(addr):
@@ -169,7 +190,13 @@ def tui(scr):
                 width = (
                     remaining
                     if idx == len(items) - 1
-                    else max(1, min(remaining, int(bytes_live / total * graph_w)))
+                    else max(
+                        1,
+                        min(
+                            remaining,
+                            int(bytes_live / total * graph_w),
+                        ),
+                    )
                 )
                 remaining -= width
                 for depth, addr in enumerate(stk):
