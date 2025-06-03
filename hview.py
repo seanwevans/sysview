@@ -233,5 +233,6 @@ def tui(scr):
         time.sleep(0.03)
 
 
-signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
-curses.wrapper(tui)
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
+    curses.wrapper(tui)
