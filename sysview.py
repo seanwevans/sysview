@@ -4,10 +4,7 @@ import argparse
 import collections
 import datetime
 import json
-import math
 import os
-import signal
-import sys
 import time
 
 from bcc import BPF
