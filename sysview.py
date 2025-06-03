@@ -97,7 +97,9 @@ class SyscallConfig:
     def merge_config(self, user_config):
         """Merge user configuration with defaults"""
         if "syscalls" in user_config:
-            for syscall_name, syscall_config in user_config["syscalls"].items():
+            for syscall_name, syscall_config in user_config[
+                "syscalls"
+            ].items():
                 if syscall_name in self.syscalls:
                     for key, value in syscall_config.items():
                         self.syscalls[syscall_name][key] = value
@@ -193,7 +195,8 @@ class SyscallMonitor:
         for name, config in enabled_syscalls.items():
             try:
                 self.b.attach_kprobe(
-                    event=self.b.get_syscall_fnname(name), fn_name=f"trace_{name}_entry"
+                    event=self.b.get_syscall_fnname(name),
+                    fn_name=f"trace_{name}_entry",
                 )
 
                 if "aliases" in config:
@@ -226,7 +229,9 @@ class SyscallMonitor:
             current_count = self.get_count(name)
             self.total_counts[name] = current_count
 
-            rate = (current_count - self.last_counts[name]) / self.sample_interval
+            rate = (
+                current_count - self.last_counts[name]
+            ) / self.sample_interval
             current_rates[name] = rate
 
             if rate > self.peak_rates[name]:
@@ -247,7 +252,8 @@ class SyscallMonitor:
             name = syscall["name"]
             try:
                 self.b.detach_kprobe(
-                    event=self.b.get_syscall_fnname(name), fn_name=f"trace_{name}_entry"
+                    event=self.b.get_syscall_fnname(name),
+                    fn_name=f"trace_{name}_entry",
                 )
 
                 if "aliases" in syscall:
@@ -332,12 +338,25 @@ class CursesDisplay:
             description = syscall["desc"]
 
             this_max_rate = max_rates[name]
-            label = f"{name:6s}: {rate:8.1f}/s (Total: {self.format_number(count):>11s}) - {description}"
-            stdscr.addstr(y_pos, 0, label, curses.color_pair(color) | curses.A_BOLD)
+            label = (
+                f"{name:6s}: {rate:8.1f}/s (Total: "
+                f"{self.format_number(count):>11s}) - {description}"
+            )
+            stdscr.addstr(
+                y_pos,
+                0,
+                label,
+                curses.color_pair(color) | curses.A_BOLD,
+            )
 
             scale_label = f"[0-{this_max_rate:.1f}/s]"
             if len(label) + len(scale_label) + 2 < hist_width + 20:
-                stdscr.addstr(y_pos, hist_width + 20, scale_label, curses.A_DIM)
+                stdscr.addstr(
+                    y_pos,
+                    hist_width + 20,
+                    scale_label,
+                    curses.A_DIM,
+                )
             y_pos += 1
 
             # single-row, 8-level Unicode block histogram
@@ -349,7 +368,12 @@ class CursesDisplay:
                 lvl = int(ratio * levels + 0.5)
                 lvl = max(0, min(levels, lvl))
                 ch = self.block_chars[lvl]
-                stdscr.addstr(hist_line_y, i + 20, ch, curses.color_pair(color))
+                stdscr.addstr(
+                    hist_line_y,
+                    i + 20,
+                    ch,
+                    curses.color_pair(color),
+                )
             y_pos += 2  # one for the blocks, one for spacing
 
             if y_pos + hist_height + 2 >= max_y:
@@ -358,7 +382,10 @@ class CursesDisplay:
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         if max_y - 1 > 0 and max_x - len(current_time) - 1 > 0:
             stdscr.addstr(
-                max_y - 1, max_x - len(current_time) - 1, current_time, curses.A_DIM
+                max_y - 1,
+                max_x - len(current_time) - 1,
+                current_time,
+                curses.A_DIM,
             )
 
         stdscr.refresh()
@@ -370,7 +397,9 @@ class CursesDisplay:
 
         stdscr.clear()
 
-        start_datetime = datetime.datetime.fromtimestamp(self.monitor.start_time)
+        start_datetime = datetime.datetime.fromtimestamp(
+            self.monitor.start_time
+        )
         formatted_start = start_datetime.strftime("%Y-%m-%d %H:%M:%S")
         end_datetime = datetime.datetime.now()
         formatted_end = end_datetime.strftime("%Y-%m-%d %H:%M:%S")
@@ -378,25 +407,28 @@ class CursesDisplay:
         stdscr.addstr(
             0,
             0,
-            "┌─ Syscall Monitoring Summary ─────────────────────────────────┐",
+            (
+                "┌─ Syscall Monitoring Summary "
+                "─────────────────────────────────┐"
+            ),
             curses.A_BOLD,
         )
         stdscr.addstr(
             1,
             0,
-            f"│ Start time: {formatted_start:<19s}                              │",
+            f"│ Start time: {formatted_start:<19s} │",
             curses.A_NORMAL,
         )
         stdscr.addstr(
             2,
             0,
-            f"│ End time:   {formatted_end:<19s}                              │",
+            f"│ End time:   {formatted_end:<19s} │",
             curses.A_NORMAL,
         )
         stdscr.addstr(
             3,
             0,
-            f"│ Duration:   {self.format_time(runtime):<19s}                              │",
+            f"│ Duration:   {self.format_time(runtime):<19s} │",
             curses.A_NORMAL,
         )
         stdscr.addstr(
@@ -430,7 +462,10 @@ class CursesDisplay:
         stdscr.addstr(
             y_pos,
             0,
-            "├──────────┼───────────────────┼─────────────────┼─────────────┤",
+            (
+                "├──────────┼───────────────────┼"
+                "─────────────────┼─────────────┤"
+            ),
             curses.A_NORMAL,
         )
         y_pos += 1
@@ -443,7 +478,10 @@ class CursesDisplay:
 
             avg_rate = count / runtime if runtime > 0 else 0
 
-            syscall_line = f"│ {name:8s} │ {self.format_number(count):>17s} │ {avg_rate:13.2f}/s │ {peak:9.2f}/s │"
+            syscall_line = (
+                f"│ {name:8s} │ {self.format_number(count):>17s} │ "
+                f"{avg_rate:13.2f}/s │ {peak:9.2f}/s │"
+            )
             stdscr.addstr(y_pos, 0, syscall_line, curses.color_pair(color))
             y_pos += 1
 
@@ -458,14 +496,20 @@ class CursesDisplay:
             curses.A_NORMAL,
         )
         y_pos += 1
-        total_line = f"│ TOTAL    │ {self.format_number(total_count):>17s} │ {total_rate:13.2f}/s │ {max_peak:9.2f}/s │"
+        total_line = (
+            f"│ TOTAL    │ {self.format_number(total_count):>17s} │ "
+            f"{total_rate:13.2f}/s │ {max_peak:9.2f}/s │"
+        )
         stdscr.addstr(y_pos, 0, total_line, curses.A_BOLD)
         y_pos += 1
 
         stdscr.addstr(
             y_pos,
             0,
-            "└──────────┴───────────────────┴─────────────────┴─────────────┘",
+            (
+                "└──────────┴───────────────────┴"
+                "─────────────────┴─────────────┘"
+            ),
             curses.A_BOLD,
         )
         y_pos += 2
@@ -487,13 +531,19 @@ class CursesDisplay:
                     percent = (count / total_count) * 100
                     bar_len = int((percent / 100) * bar_width)
 
-                    pct_line = f"{name:8s}: {percent:5.1f}% ({self.format_number(count)} calls) "
+                    pct_line = (
+                        f"{name:8s}: {percent:5.1f}% "
+                        f"({self.format_number(count)} calls) "
+                    )
                     stdscr.addstr(y_pos, 0, pct_line)
 
                     for j in range(bar_len):
                         if bar_start + j < max_x:
                             stdscr.addch(
-                                y_pos, bar_start + j, "█", curses.color_pair(color)
+                                y_pos,
+                                bar_start + j,
+                                "█",
+                                curses.color_pair(color),
                             )
 
                     y_pos += 1
@@ -508,7 +558,11 @@ class CursesDisplay:
 
 def main_wrapper(stdscr, args):
     config = SyscallConfig(args.config)
-    monitor = SyscallMonitor(config, interval=args.interval, history_size=args.history)
+    monitor = SyscallMonitor(
+        config,
+        interval=args.interval,
+        history_size=args.history,
+    )
     display = CursesDisplay(monitor)
 
     try:
@@ -541,10 +595,16 @@ def main_wrapper(stdscr, args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extensible Syscall Monitoring Tool")
+    parser = argparse.ArgumentParser(
+        description="Extensible Syscall Monitoring Tool"
+    )
     parser.add_argument("--config", "-c", help="Configuration file (JSON)")
     parser.add_argument(
-        "--interval", "-i", type=float, default=1.0, help="Sampling interval in seconds"
+        "--interval",
+        "-i",
+        type=float,
+        default=1.0,
+        help="Sampling interval in seconds",
     )
     parser.add_argument(
         "--history",
