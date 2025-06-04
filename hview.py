@@ -7,6 +7,7 @@ import signal
 import time
 import sys
 import hashlib
+import os
 from bcc import BPF
 
 # ───── CLI ──────────────────────────────────────────────────────────
@@ -233,6 +234,13 @@ def tui(scr):
         time.sleep(0.03)
 
 
-if __name__ == "__main__":
+def main():
+    if os.geteuid() != 0:
+        print("This script must be run as root. Please run with sudo.")
+        return
     signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
     curses.wrapper(tui)
+
+
+if __name__ == "__main__":
+    main()
