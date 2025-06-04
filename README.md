@@ -160,6 +160,54 @@ sudo ./sysview.py --history 30
 - Educational tool for understanding OS internals
 - Security monitoring for unusual syscall patterns
 
+## csview.py - Heap Flame Graph
+
+`csview.py` attaches eBPF uprobes to the malloc family for a target
+process and shows a real-time flame graph of heap allocations.
+
+### Prerequisites
+
+- Linux with BPF support
+- Python 3.6+
+- BCC and the curses library
+- Root privileges
+
+### Example
+
+Monitor the heap usage of PID `1234`:
+
+```bash
+sudo ./csview.py --pid 1234
+```
+
+Use a faster refresh rate and rolling window mode:
+
+```bash
+sudo ./csview.py --pid 1234 --win 0.5 --windowed
+```
+
+## hview.py
+
+`hview.py` is a lightweight variant of the heap flame graph viewer with
+identical command-line options.
+
+### Prerequisites
+
+- Linux with BPF support
+- Python 3.6+
+- BCC and the curses library
+- Root privileges
+
+### Example
+
+```bash
+sudo ./hview.py --pid 1234
+```
+
+```bash
+sudo ./hview.py --pid 1234 --win 0.5 -w
+```
+
 ## License
 
 [MIT License](LICENSE)
