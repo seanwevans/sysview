@@ -1,0 +1,2 @@
+bcc
+windows-curses; sys_platform == "win32"
