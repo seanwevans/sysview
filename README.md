@@ -22,7 +22,7 @@ SysView is a powerful, curses-based Linux system call monitoring utility that pr
 
 ## Installation
 
-1. Install dependencies:
+1. Install system dependencies:
 
 ```bash
 # Debian/Ubuntu
@@ -42,7 +42,13 @@ git clone https://github.com/yourusername/sysview.git
 cd sysview
 ```
 
-3. Make the script executable:
+3. Install Python packages:
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Make the script executable:
 
 ```bash
 chmod +x sysview.py
