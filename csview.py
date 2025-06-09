@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" hview.py — realtime eBPF heap-flame graph (bytes live per call-stack) """
+""" csview.py — realtime eBPF heap-flame graph (bytes live per call-stack) """
 
 import argparse
 import hashlib
