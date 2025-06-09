@@ -203,8 +203,10 @@ class SyscallMonitor:
                                 event=self.b.get_syscall_fnname(alias),
                                 fn_name=f"trace_{name}_entry",
                             )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(
+                                f"Warning: Failed to attach alias {alias} for {name}: {e}"
+                            )
 
             except Exception as e:
                 print(f"Warning: Failed to attach probe for {name}: {e}")
