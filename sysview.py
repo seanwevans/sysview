@@ -594,6 +594,9 @@ def main_wrapper(stdscr, args):
 
 
 def main():
+    if os.geteuid() != 0:
+        print("This script must be run as root. Please run with sudo.")
+        return
     parser = argparse.ArgumentParser(
         description="Extensible Syscall Monitoring Tool"
     )
