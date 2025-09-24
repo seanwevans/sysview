@@ -4,11 +4,16 @@ import argparse
 import collections
 import datetime
 import json
+import logging
 import os
 import time
 
 from bcc import BPF
 import curses
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class SyscallConfig:
@@ -123,6 +128,7 @@ class SyscallMonitor:
         self.sample_interval = interval
         self.history_size = history_size
         self.start_time = time.time()
+        self.disabled_syscalls = {}
 
         self.initialize_data_structures()
 
@@ -185,31 +191,60 @@ class SyscallMonitor:
 
         return bpf_header + bpf_maps + bpf_functions
 
+    def disable_syscall(self, name, reason):
+        """Disable a syscall from monitoring and log the reason."""
+        logger.warning("Disabling syscall %s: %s", name, reason)
+        self.disabled_syscalls[name] = reason
+
+        if name in self.config.syscalls:
+            self.config.syscalls[name]["enabled"] = False
+            self.config.syscalls[name]["disabled_reason"] = reason
+
+        self.history.pop(name, None)
+        self.last_counts.pop(name, None)
+        self.total_counts.pop(name, None)
+        self.peak_rates.pop(name, None)
+        self.syscalls = [s for s in self.syscalls if s["name"] != name]
+
     def attach_kprobes(self):
         """Attach kprobes for all enabled syscalls"""
         enabled_syscalls = self.config.get_enabled_syscalls()
 
         for name, config in enabled_syscalls.items():
+            attached_events = []
+            current_alias = None
             try:
+                event_name = self.b.get_syscall_fnname(name)
                 self.b.attach_kprobe(
-                    event=self.b.get_syscall_fnname(name),
+                    event=event_name,
                     fn_name=f"trace_{name}_entry",
                 )
+                attached_events.append((event_name, f"trace_{name}_entry"))
 
-                if "aliases" in config:
-                    for alias in config["aliases"]:
-                        try:
-                            self.b.attach_kprobe(
-                                event=self.b.get_syscall_fnname(alias),
-                                fn_name=f"trace_{name}_entry",
-                            )
-                        except Exception as e:
-                            print(
-                                f"Warning: Failed to attach alias {alias} for {name}: {e}"
-                            )
+                for alias in config.get("aliases", []):
+                    current_alias = alias
+                    alias_event = self.b.get_syscall_fnname(alias)
+                    self.b.attach_kprobe(
+                        event=alias_event,
+                        fn_name=f"trace_{name}_entry",
+                    )
+                    attached_events.append((alias_event, f"trace_{name}_entry"))
+                    current_alias = None
 
             except Exception as e:
-                print(f"Warning: Failed to attach probe for {name}: {e}")
+                reason = (
+                    f"Failed to attach alias {current_alias} for {name}: {e}"
+                    if current_alias
+                    else f"Failed to attach probe for {name}: {e}"
+                )
+
+                for event, fn_name in attached_events:
+                    try:
+                        self.b.detach_kprobe(event=event, fn_name=fn_name)
+                    except Exception:
+                        pass
+
+                self.disable_syscall(name, reason)
 
     def get_count(self, name):
         """Get current count for a syscall"""
