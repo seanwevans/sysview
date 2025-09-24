@@ -5,10 +5,127 @@ import collections
 import datetime
 import json
 import os
+import socket
 import time
 
 from bcc import BPF
 import curses
+
+
+class MetricsStreamer:
+    """Stream syscall metrics snapshots to files or sockets."""
+
+    def __init__(
+        self,
+        file_path=None,
+        socket_address=None,
+        fmt="json",
+    ):
+        if fmt not in {"json", "prometheus"}:
+            raise ValueError("Unsupported stream format")
+
+        if not file_path and not socket_address:
+            raise ValueError("At least one streaming target must be provided")
+
+        self.format = fmt
+        self.file_path = file_path
+        self.file_handle = None
+        if file_path:
+            # line-buffered so readers get updates immediately
+            self.file_handle = open(file_path, "a", buffering=1)
+
+        self.socket_address = None
+        self.socket = None
+        if socket_address:
+            self.socket_address = self._normalize_socket_address(socket_address)
+            self.socket = socket.create_connection(self.socket_address)
+
+    def _normalize_socket_address(self, addr):
+        if isinstance(addr, tuple):
+            if len(addr) != 2:
+                raise ValueError("Socket address tuple must contain host and port")
+            host, port = addr
+            return (host, int(port))
+
+        if isinstance(addr, str):
+            if ":" not in addr:
+                raise ValueError("Socket address must be in HOST:PORT format")
+            host, port = addr.rsplit(":", 1)
+            return (host, int(port))
+
+        raise TypeError("socket_address must be a tuple or HOST:PORT string")
+
+    def close(self):
+        if self.file_handle:
+            try:
+                self.file_handle.close()
+            except Exception:
+                pass
+            self.file_handle = None
+
+        if self.socket:
+            try:
+                self.socket.close()
+            except Exception:
+                pass
+            self.socket = None
+
+    def write_snapshot(self, monitor, current_rates):
+        snapshot = {
+            "timestamp": time.time(),
+            "runtime": monitor.get_runtime(),
+            "rates": {name: float(rate) for name, rate in current_rates.items()},
+            "totals": dict(monitor.total_counts),
+            "peak_rates": dict(monitor.peak_rates),
+        }
+
+        if self.format == "json":
+            payload = json.dumps(snapshot)
+        else:
+            payload = self._format_prometheus(snapshot)
+
+        self._write_payload(payload)
+
+    def _format_prometheus(self, snapshot):
+        lines = [
+            "# HELP sysview_syscall_rate Syscall rate per second",
+            "# TYPE sysview_syscall_rate gauge",
+        ]
+
+        for name, rate in sorted(snapshot["rates"].items()):
+            lines.append(f'sysview_syscall_rate{{syscall="{name}"}} {rate}')
+
+        lines.extend(
+            [
+                "# HELP sysview_syscall_total Total syscall count",
+                "# TYPE sysview_syscall_total counter",
+            ]
+        )
+
+        for name, count in sorted(snapshot["totals"].items()):
+            lines.append(f'sysview_syscall_total{{syscall="{name}"}} {count}')
+
+        lines.append(
+            f'sysview_monitor_runtime_seconds {snapshot["runtime"]}'
+        )
+        lines.append(
+            f'sysview_snapshot_timestamp_seconds {snapshot["timestamp"]}'
+        )
+
+        return "\n".join(lines)
+
+    def _write_payload(self, payload):
+        if self.file_handle:
+            try:
+                self.file_handle.write(payload + "\n")
+            except Exception:
+                pass
+
+        if self.socket:
+            try:
+                self.socket.sendall((payload + "\n").encode("utf-8"))
+            except Exception:
+                pass
 
 
 class SyscallConfig:
@@ -564,9 +681,23 @@ def main_wrapper(stdscr, args):
     )
     display = CursesDisplay(monitor)
 
+    streamer = None
+    if args.stream_file or args.stream_socket:
+        try:
+            streamer = MetricsStreamer(
+                file_path=args.stream_file,
+                socket_address=args.stream_socket,
+                fmt=args.stream_format,
+            )
+        except Exception as e:
+            print(f"Error initializing metrics streamer: {e}")
+            streamer = None
+
     try:
         while True:
             current_rates = monitor.update_counts()
+            if streamer:
+                streamer.write_snapshot(monitor, current_rates)
             display.display_live_view(stdscr, current_rates)
             time.sleep(monitor.sample_interval)
     except KeyboardInterrupt:
@@ -591,6 +722,8 @@ def main_wrapper(stdscr, args):
                 print(f"Results saved to {args.output}")
             except Exception as e:
                 print(f"Error saving results: {e}")
+        if streamer:
+            streamer.close()
 
 
 def main():
@@ -618,6 +751,20 @@ def main():
     parser.add_argument("--output", "-o", help="Save results to file (JSON)")
     parser.add_argument(
         "--generate-config", "-g", help="Generate default config file and exit"
+    )
+    parser.add_argument(
+        "--stream-file",
+        help="Stream metrics snapshots to this file as newline-delimited entries",
+    )
+    parser.add_argument(
+        "--stream-socket",
+        help="Stream metrics snapshots to HOST:PORT via TCP",
+    )
+    parser.add_argument(
+        "--stream-format",
+        choices=["json", "prometheus"],
+        default="json",
+        help="Streaming format for metrics output",
     )
 
     args = parser.parse_args()
