@@ -790,7 +790,8 @@ class CursesDisplay:
             0,
             "│ SYSCALL  │    TOTAL CALLS    │  RATE (per sec) │  PEAK RATE  │",
             curses.A_BOLD,
-
+        
+        )
         name_col_width = 16
         count_col_width = 17
         rate_num_width = 13
@@ -1002,18 +1003,12 @@ def main_wrapper(stdscr, args):
             print(f"Error initializing metrics streamer: {e}")
             streamer = None
 
-    try:
-        while True:
-            current_rates = monitor.update_counts()
-            if streamer:
-                streamer.write_snapshot(monitor, current_rates)
-            display.display_live_view(stdscr, current_rates)
-            time.sleep(monitor.sample_interval)
-
     paused = False
     running = True
-    current_rates = {syscall["name"]: 0 for syscall in monitor.syscalls}
-    last_update = time.time() - monitor.sample_interval
+    current_rates = monitor.update_counts()
+    last_update = time.time()
+    if streamer:
+        streamer.write_snapshot(monitor, current_rates)
     stdscr.nodelay(True)
 
     try:
@@ -1023,6 +1018,8 @@ def main_wrapper(stdscr, args):
                 elapsed = now - last_update
                 current_rates = monitor.update_counts(elapsed=elapsed)
                 last_update = now
+                if streamer:
+                    streamer.write_snapshot(monitor, current_rates)
 
             display.display_live_view(stdscr, current_rates, paused=paused)
 
