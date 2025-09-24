@@ -185,6 +185,31 @@ class SyscallMonitor:
 
         return bpf_header + bpf_maps + bpf_functions
 
+    def adjust_sample_interval(self, delta):
+        """Adjust the sampling interval by ``delta`` seconds."""
+
+        new_interval = max(0.1, self.sample_interval + delta)
+        # Avoid tiny floating point noise by rounding to two decimals
+        self.sample_interval = round(new_interval, 2)
+
+    def adjust_history_size(self, delta):
+        """Adjust history depth and resize the stored histories."""
+
+        new_size = int(max(1, self.history_size + delta))
+        if new_size == self.history_size:
+            return
+
+        for name, history in self.history.items():
+            existing = list(history)
+            if new_size > len(existing):
+                padding = [0] * (new_size - len(existing))
+                new_values = padding + existing
+            else:
+                new_values = existing[-new_size:]
+            self.history[name] = collections.deque(new_values, maxlen=new_size)
+
+        self.history_size = new_size
+
     def attach_kprobes(self):
         """Attach kprobes for all enabled syscalls"""
         enabled_syscalls = self.config.get_enabled_syscalls()
@@ -218,9 +243,11 @@ class SyscallMonitor:
             return v.value
         return 0
 
-    def update_counts(self):
+    def update_counts(self, elapsed=None):
         """Update all syscall counts"""
         current_rates = {}
+        elapsed = self.sample_interval if elapsed is None else elapsed
+        elapsed = max(elapsed, 1e-6)
 
         for syscall in self.syscalls:
             name = syscall["name"]
@@ -228,9 +255,7 @@ class SyscallMonitor:
             current_count = self.get_count(name)
             self.total_counts[name] = current_count
 
-            rate = (
-                current_count - self.last_counts[name]
-            ) / self.sample_interval
+            rate = (current_count - self.last_counts[name]) / elapsed
             current_rates[name] = rate
 
             if rate > self.peak_rates[name]:
@@ -305,7 +330,7 @@ class CursesDisplay:
             days = seconds / 86400
             return f"{days:.1f} days"
 
-    def display_live_view(self, stdscr, current_rates):
+    def display_live_view(self, stdscr, current_rates, paused=False):
         """Display live syscall monitoring view"""
         max_y, max_x = stdscr.getmaxyx()
         hist_height = 1
@@ -326,8 +351,22 @@ class CursesDisplay:
 
         title = f"Syscall Rate Monitor - Running {runtime_str}"
         stdscr.addstr(0, 0, title, curses.A_BOLD)
+
+        controls = (
+            "Controls: p Pause/Resume  q Quit  +/- History  </> Interval"
+        )
+        stdscr.addstr(1, 0, controls, curses.A_DIM)
+
+        status = (
+            f"Interval: {self.monitor.sample_interval:.2f}s  "
+            f"History: {self.monitor.history_size} samples"
+        )
+        if paused:
+            status += "  [PAUSED]"
+        stdscr.addstr(2, 0, status, curses.A_BOLD if paused else curses.A_NORMAL)
+
         stdscr.addstr(0, max_x - 20, "Press Ctrl+C to exit", curses.A_DIM)
-        y_pos = 2
+        y_pos = 4
 
         for syscall in self.monitor.syscalls:
             name = syscall["name"]
@@ -564,11 +603,50 @@ def main_wrapper(stdscr, args):
     )
     display = CursesDisplay(monitor)
 
+    paused = False
+    running = True
+    current_rates = {syscall["name"]: 0 for syscall in monitor.syscalls}
+    last_update = time.time() - monitor.sample_interval
+    stdscr.nodelay(True)
+
     try:
-        while True:
-            current_rates = monitor.update_counts()
-            display.display_live_view(stdscr, current_rates)
-            time.sleep(monitor.sample_interval)
+        while running:
+            now = time.time()
+            if not paused and (now - last_update) >= monitor.sample_interval:
+                elapsed = now - last_update
+                current_rates = monitor.update_counts(elapsed=elapsed)
+                last_update = now
+
+            display.display_live_view(stdscr, current_rates, paused=paused)
+
+            try:
+                key = stdscr.getch()
+            except curses.error:
+                key = -1
+
+            while key != -1:
+                if key in (ord("q"), ord("Q")):
+                    running = False
+                    break
+                if key in (ord("p"), ord("P")):
+                    paused = not paused
+                elif key in (ord("+"), ord("=")):
+                    monitor.adjust_history_size(10)
+                elif key in (ord("-"), ord("_")):
+                    monitor.adjust_history_size(-10)
+                elif key == ord("<"):
+                    monitor.adjust_sample_interval(-0.1)
+                    last_update = now
+                elif key == ord(">"):
+                    monitor.adjust_sample_interval(0.1)
+                    last_update = now
+
+                try:
+                    key = stdscr.getch()
+                except curses.error:
+                    key = -1
+
+            time.sleep(0.05)
     except KeyboardInterrupt:
         pass
     finally:
