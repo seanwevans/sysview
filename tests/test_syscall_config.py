@@ -1,5 +1,7 @@
 import types, sys
 
+import pytest
+
 # Provide a stub for the bcc module so sysview imports without system dependencies
 bcc_stub = types.ModuleType('bcc')
 bcc_stub.BPF = object
@@ -35,3 +37,24 @@ def test_merge_config_overrides_and_adds():
     enabled = cfg.get_enabled_syscalls()
     assert 'write' not in enabled  # disabled in user config
     assert 'newcall' in enabled
+
+
+def test_merge_config_requires_fields():
+    cfg = sysview.SyscallConfig()
+
+    with pytest.raises(ValueError):
+        cfg.merge_config({'syscalls': {'broken': {'color': 1}}})
+
+
+def test_merge_config_validates_aliases_type():
+    cfg = sysview.SyscallConfig()
+
+    with pytest.raises(ValueError):
+        cfg.merge_config({'syscalls': {'read': {'aliases': 'not-a-list'}}})
+
+
+def test_enabled_syscalls_include_category():
+    cfg = sysview.SyscallConfig()
+    enabled = cfg.get_enabled_syscalls()
+
+    assert enabled['read']['category'] == 'file'
