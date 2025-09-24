@@ -190,18 +190,16 @@ class SyscallConfig:
 
 
 class SyscallMonitor:
-    def __init__(self, config, interval=1, history_size=60):
+    def __init__(self, config, interval=1, history_size=60, group_by="pid"):
         self.config = config
         self.sample_interval = interval
         self.history_size = history_size
         self.start_time = time.time()
+        self.group_by = group_by
         self.disabled_syscalls = {}
-
         self.initialize_data_structures()
-
         self.bpf_text = self.generate_bpf_program()
         self.b = BPF(text=self.bpf_text)
-
         self.attach_kprobes()
 
     def initialize_data_structures(self):
@@ -211,6 +209,7 @@ class SyscallMonitor:
         self.last_counts = {}
         self.total_counts = {}
         self.peak_rates = {}
+        self.entity_counts = {}
 
         for name, config in self.config.get_enabled_syscalls().items():
             self.syscalls.append(config)
@@ -220,12 +219,13 @@ class SyscallMonitor:
             self.last_counts[name] = 0
             self.total_counts[name] = 0
             self.peak_rates[name] = 0
+            self.entity_counts[name] = {}
 
     def generate_bpf_program(self):
         """Dynamically generate BPF program based on enabled syscalls"""
         bpf_header = """
         #include <uapi/linux/ptrace.h>
-        
+
         // Define BPF maps to store counts for different syscalls
         """
 
@@ -234,27 +234,35 @@ class SyscallMonitor:
 
         enabled_syscalls = self.config.get_enabled_syscalls()
         for name in enabled_syscalls:
-            bpf_maps += f"BPF_HASH({name}_count, u32, u64);\n"
+            bpf_maps += f"BPF_HASH({name}_count, u64, u64);\n"
 
         for name, config in enabled_syscalls.items():
+            if getattr(self, "group_by", "pid") == "pid":
+                key_assign = "key = id >> 32;"
+            else:
+                key_assign = "key = id;"
             function_template = """
             // Track {name} syscalls
             int trace_{name}_entry(struct pt_regs *ctx) {{
-                u64 counter = 0;
-                u32 key = 0;
-            
+                u64 id = bpf_get_current_pid_tgid();
+                u64 key = 0;
+                u64 init = 1;
+
+                {key_assign}
+
                 u64 *count = {name}_count.lookup(&key);
                 if (count) {{
-                    counter = *count;
+                    (*count)++;
+                }} else {{
+                    {name}_count.update(&key, &init);
                 }}
-            
-                counter++;
-                {name}_count.update(&key, &counter);
-            
+
                 return 0;
             }}
             """
-            bpf_functions += function_template.format(name=name)
+            bpf_functions += function_template.format(
+                name=name, key_assign=key_assign
+            )
 
         return bpf_header + bpf_maps + bpf_functions
 
@@ -338,12 +346,47 @@ class SyscallMonitor:
 
                 self.disable_syscall(name, reason)
 
-    def get_count(self, name):
-        """Get current count for a syscall"""
+    def get_counts(self, name):
+        """Get current per-entity counts for a syscall"""
         count_map = self.b.get_table(f"{name}_count")
+        counts: dict[int, int] = {}
         for k, v in count_map.items():
-            return v.value
-        return 0
+            counts[int(k.value)] = v.value
+        return counts
+
+    def entity_id_to_components(self, entity_id: int) -> tuple[int, int]:
+        """Return (pid, tid) tuple derived from the entity identifier."""
+        if self.group_by == "pid":
+            return entity_id, entity_id
+        pid = entity_id >> 32
+        tid = entity_id & 0xFFFFFFFF
+        return pid, tid
+
+    def format_entity_label(self, entity_id: int) -> str:
+        """Generate a human-friendly label for a workload."""
+        pid, tid = self.entity_id_to_components(entity_id)
+
+        if self.group_by == "pid":
+            comm_path = f"/proc/{pid}/comm"
+            label = f"pid {pid}"
+        else:
+            comm_path = f"/proc/{pid}/task/{tid}/comm"
+            label = f"tid {tid} (pid {pid})"
+
+        try:
+            with open(comm_path, "r") as comm_file:
+                name = comm_file.read().strip()
+                if name:
+                    label = f"{label} [{name}]"
+        except OSError:
+            pass
+
+        return label
+
+    def get_grouping_description(self) -> str:
+        if self.group_by == "pid":
+            return "per-process (PID)"
+        return "per-thread (TID)"
 
     def update_counts(self, elapsed=None):
         """Update all syscall counts"""
@@ -354,17 +397,21 @@ class SyscallMonitor:
         for syscall in self.syscalls:
             name = syscall["name"]
 
-            current_count = self.get_count(name)
-            self.total_counts[name] = current_count
+            counts = self.get_counts(name)
+            total = sum(counts.values())
+            self.total_counts[name] = total
+            self.entity_counts[name] = counts
 
-            rate = (current_count - self.last_counts[name]) / elapsed
+            rate = (
+                total - self.last_counts[name]
+            ) / self.sample_interval
             current_rates[name] = rate
 
             if rate > self.peak_rates[name]:
                 self.peak_rates[name] = rate
 
             self.history[name].append(rate)
-            self.last_counts[name] = current_count
+            self.last_counts[name] = total
 
         return current_rates
 
@@ -571,8 +618,15 @@ class CursesDisplay:
             f"│ Duration:   {self.format_time(runtime):<19s} │",
             curses.A_NORMAL,
         )
+        grouping_desc = self.monitor.get_grouping_description()
         stdscr.addstr(
             4,
+            0,
+            f"│ Grouping:   {grouping_desc:<19s} │",
+            curses.A_NORMAL,
+        )
+        stdscr.addstr(
+            5,
             0,
             "├──────────────────────────────────────────────────────────────┤",
             curses.A_BOLD,
@@ -611,6 +665,13 @@ class CursesDisplay:
         sorted_categories = sorted(
             category_data.items(), key=lambda item: item[1]["count"], reverse=True
         )
+
+        y_pos = 6
+        stdscr.addstr(
+            y_pos,
+            0,
+            "│ SYSCALL  │    TOTAL CALLS    │  RATE (per sec) │  PEAK RATE  │",
+            curses.A_BOLD,
 
         name_col_width = 16
         count_col_width = 17
@@ -704,6 +765,64 @@ class CursesDisplay:
         )
         stdscr.addstr(y_pos, 0, total_line, curses.A_BOLD)
         y_pos += 1
+        entity_totals = collections.Counter()
+        per_syscall_top = {}
+        for syscall in self.monitor.syscalls:
+            name = syscall["name"]
+            counts = self.monitor.entity_counts.get(name, {})
+            if counts:
+                per_syscall_top[name] = max(counts.items(), key=lambda kv: kv[1])
+            entity_totals.update(counts)
+
+        if entity_totals:
+            y_pos += 1
+            stdscr.addstr(
+                y_pos,
+                0,
+                "├────────────────────────── Top Workloads ─────────────────────┤",
+                curses.A_BOLD,
+            )
+            y_pos += 1
+
+            top_entities = entity_totals.most_common(5)
+            for entity_id, count in top_entities:
+                label = self.monitor.format_entity_label(entity_id)
+                percent = (count / total_count * 100) if total_count else 0
+                line = (
+                    f"│ {label:<45.45s} {self.format_number(count):>12s}"
+                    f" ({percent:5.1f}%) │"
+                )
+                stdscr.addstr(y_pos, 0, line)
+                y_pos += 1
+
+            if per_syscall_top:
+                y_pos += 1
+                stdscr.addstr(
+                    y_pos,
+                    0,
+                    "├─────────────────────── Per-syscall leaders ──────────────────┤",
+                    curses.A_BOLD,
+                )
+                y_pos += 1
+
+                for name, (entity_id, count) in per_syscall_top.items():
+                    label = self.monitor.format_entity_label(entity_id)
+                    line = (
+                        f"│ {name:8s} → {label:<33.33s}"
+                        f" {self.format_number(count):>12s} │"
+                    )
+                    stdscr.addstr(y_pos, 0, line)
+                    y_pos += 1
+
+        stdscr.addstr(
+            y_pos,
+            0,
+            (
+                "└──────────┴───────────────────┴"
+                "─────────────────┴─────────────┘"
+            ),
+            curses.A_BOLD,
+        )
         stdscr.addstr(y_pos, 0, bottom_line, curses.A_BOLD)
         y_pos += 2
 
@@ -749,6 +868,7 @@ def main_wrapper(stdscr, args):
         config,
         interval=args.interval,
         history_size=args.history,
+        group_by=args.group_by,
     )
     display = CursesDisplay(monitor)
 
@@ -809,8 +929,16 @@ def main_wrapper(stdscr, args):
                             "start_time": monitor.start_time,
                             "end_time": time.time(),
                             "duration": monitor.get_runtime(),
+                            "group_by": monitor.group_by,
                             "total_counts": monitor.total_counts,
                             "peak_rates": monitor.peak_rates,
+                            "entity_counts": {
+                                name: {
+                                    str(entity): count
+                                    for entity, count in entities.items()
+                                }
+                                for name, entities in monitor.entity_counts.items()
+                            },
                         },
                         f,
                         indent=2,
@@ -845,6 +973,12 @@ def main():
     parser.add_argument("--output", "-o", help="Save results to file (JSON)")
     parser.add_argument(
         "--generate-config", "-g", help="Generate default config file and exit"
+    )
+    parser.add_argument(
+        "--group-by",
+        choices=["pid", "tid"],
+        default="pid",
+        help="Aggregate counts per process (pid) or per thread (tid)",
     )
 
     args = parser.parse_args()
