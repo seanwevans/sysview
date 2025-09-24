@@ -2,13 +2,19 @@
 
 import argparse
 import collections
+import copy
 import datetime
 import json
+import logging
 import os
 import time
 
 from bcc import BPF
 import curses
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class SyscallConfig:
@@ -21,6 +27,7 @@ class SyscallConfig:
                 "color_def": curses.COLOR_GREEN,
                 "desc": "Writing to files/pipes",
                 "enabled": True,
+                "category": "file",
             },
             "read": {
                 "name": "read",
@@ -28,6 +35,7 @@ class SyscallConfig:
                 "color_def": curses.COLOR_CYAN,
                 "desc": "Reading from files/pipes",
                 "enabled": True,
+                "category": "file",
             },
             "open": {
                 "name": "open",
@@ -35,6 +43,7 @@ class SyscallConfig:
                 "color_def": curses.COLOR_YELLOW,
                 "desc": "Opening files",
                 "enabled": True,
+                "category": "file",
             },
             "close": {
                 "name": "close",
@@ -42,6 +51,7 @@ class SyscallConfig:
                 "color_def": curses.COLOR_RED,
                 "desc": "Closing file descriptors",
                 "enabled": True,
+                "category": "file",
             },
             "mmap": {
                 "name": "mmap",
@@ -49,6 +59,7 @@ class SyscallConfig:
                 "color_def": curses.COLOR_MAGENTA,
                 "desc": "Memory mapping",
                 "enabled": True,
+                "category": "memory",
             },
             "socket": {
                 "name": "socket",
@@ -56,6 +67,7 @@ class SyscallConfig:
                 "color_def": curses.COLOR_BLUE,
                 "desc": "Network socket operations",
                 "enabled": True,
+                "category": "network",
             },
             "poll": {
                 "name": "poll",
@@ -64,6 +76,7 @@ class SyscallConfig:
                 "desc": "I/O event notifications (poll/select/epoll)",
                 "enabled": True,
                 "aliases": ["select", "epoll_wait"],
+                "category": "file",
             },
             "futex": {
                 "name": "futex",
@@ -71,6 +84,7 @@ class SyscallConfig:
                 "color_def": 208,  # Orange
                 "desc": "Fast user-space locking",
                 "enabled": True,
+                "category": "synchronization",
             },
             "execve": {
                 "name": "execve",
@@ -78,30 +92,46 @@ class SyscallConfig:
                 "color_def": 85,  # Teal
                 "desc": "Execute programs",
                 "enabled": True,
+                "category": "process",
             },
         }
 
-        self.syscalls = self.default_syscalls.copy()
+        self.syscalls = copy.deepcopy(self.default_syscalls)
 
         if filename and os.path.exists(filename):
             try:
                 with open(filename, "r") as f:
                     user_config = json.load(f)
                     self.merge_config(user_config)
+            except ValueError as e:
+                raise ValueError(f"Invalid configuration file '{filename}': {e}")
             except Exception as e:
                 print(f"Error loading config file: {e}")
 
     def merge_config(self, user_config):
         """Merge user configuration with defaults"""
-        if "syscalls" in user_config:
-            for syscall_name, syscall_config in user_config[
-                "syscalls"
-            ].items():
-                if syscall_name in self.syscalls:
-                    for key, value in syscall_config.items():
-                        self.syscalls[syscall_name][key] = value
-                else:
-                    self.syscalls[syscall_name] = syscall_config
+        if not isinstance(user_config, dict):
+            raise ValueError("Config must be a dictionary")
+
+        syscalls = user_config.get("syscalls")
+        if syscalls is None:
+            return
+        if not isinstance(syscalls, dict):
+            raise ValueError("'syscalls' must be a dictionary")
+
+        for syscall_name, syscall_config in syscalls.items():
+            if not isinstance(syscall_config, dict):
+                raise ValueError(
+                    f"Configuration for syscall '{syscall_name}' must be a dictionary"
+                )
+
+            base_config = copy.deepcopy(self.syscalls.get(syscall_name, {}))
+            merged_config = {**base_config, **syscall_config}
+            if "name" not in merged_config:
+                merged_config["name"] = syscall_name
+
+            validated = self._validate_syscall_config(syscall_name, merged_config)
+            self.syscalls[syscall_name] = validated
 
     def get_enabled_syscalls(self):
         """Return only enabled syscalls"""
@@ -116,6 +146,48 @@ class SyscallConfig:
         with open(filename, "w") as f:
             json.dump({"syscalls": self.syscalls}, f, indent=2)
 
+    def _validate_syscall_config(self, syscall_name, config):
+        required_fields = {
+            "name": str,
+            "color": int,
+            "desc": str,
+            "enabled": bool,
+        }
+
+        for field, expected_type in required_fields.items():
+            if field not in config:
+                raise ValueError(
+                    f"Missing required field '{field}' for syscall '{syscall_name}'"
+                )
+            if not isinstance(config[field], expected_type):
+                raise ValueError(
+                    f"Field '{field}' for syscall '{syscall_name}' must be of type "
+                    f"{expected_type.__name__}"
+                )
+
+        if "color_def" in config and not isinstance(config["color_def"], int):
+            raise ValueError(
+                f"Field 'color_def' for syscall '{syscall_name}' must be an integer"
+            )
+
+        if "aliases" in config:
+            aliases = config["aliases"]
+            if not isinstance(aliases, list) or not all(
+                isinstance(alias, str) for alias in aliases
+            ):
+                raise ValueError(
+                    f"Field 'aliases' for syscall '{syscall_name}' must be a list of strings"
+                )
+
+        category = config.get("category", "uncategorized")
+        if not isinstance(category, str):
+            raise ValueError(
+                f"Field 'category' for syscall '{syscall_name}' must be a string"
+            )
+        config["category"] = category
+
+        return config
+
 
 class SyscallMonitor:
     def __init__(self, config, interval=1, history_size=60):
@@ -123,6 +195,7 @@ class SyscallMonitor:
         self.sample_interval = interval
         self.history_size = history_size
         self.start_time = time.time()
+        self.disabled_syscalls = {}
 
         self.initialize_data_structures()
 
@@ -210,31 +283,60 @@ class SyscallMonitor:
 
         self.history_size = new_size
 
+    def disable_syscall(self, name, reason):
+        """Disable a syscall from monitoring and log the reason."""
+        logger.warning("Disabling syscall %s: %s", name, reason)
+        self.disabled_syscalls[name] = reason
+
+        if name in self.config.syscalls:
+            self.config.syscalls[name]["enabled"] = False
+            self.config.syscalls[name]["disabled_reason"] = reason
+
+        self.history.pop(name, None)
+        self.last_counts.pop(name, None)
+        self.total_counts.pop(name, None)
+        self.peak_rates.pop(name, None)
+        self.syscalls = [s for s in self.syscalls if s["name"] != name]
+
     def attach_kprobes(self):
         """Attach kprobes for all enabled syscalls"""
         enabled_syscalls = self.config.get_enabled_syscalls()
 
         for name, config in enabled_syscalls.items():
+            attached_events = []
+            current_alias = None
             try:
+                event_name = self.b.get_syscall_fnname(name)
                 self.b.attach_kprobe(
-                    event=self.b.get_syscall_fnname(name),
+                    event=event_name,
                     fn_name=f"trace_{name}_entry",
                 )
+                attached_events.append((event_name, f"trace_{name}_entry"))
 
-                if "aliases" in config:
-                    for alias in config["aliases"]:
-                        try:
-                            self.b.attach_kprobe(
-                                event=self.b.get_syscall_fnname(alias),
-                                fn_name=f"trace_{name}_entry",
-                            )
-                        except Exception as e:
-                            print(
-                                f"Warning: Failed to attach alias {alias} for {name}: {e}"
-                            )
+                for alias in config.get("aliases", []):
+                    current_alias = alias
+                    alias_event = self.b.get_syscall_fnname(alias)
+                    self.b.attach_kprobe(
+                        event=alias_event,
+                        fn_name=f"trace_{name}_entry",
+                    )
+                    attached_events.append((alias_event, f"trace_{name}_entry"))
+                    current_alias = None
 
             except Exception as e:
-                print(f"Warning: Failed to attach probe for {name}: {e}")
+                reason = (
+                    f"Failed to attach alias {current_alias} for {name}: {e}"
+                    if current_alias
+                    else f"Failed to attach probe for {name}: {e}"
+                )
+
+                for event, fn_name in attached_events:
+                    try:
+                        self.b.detach_kprobe(event=event, fn_name=fn_name)
+                    except Exception:
+                        pass
+
+                self.disable_syscall(name, reason)
 
     def get_count(self, name):
         """Get current count for a syscall"""
@@ -476,115 +578,162 @@ class CursesDisplay:
             curses.A_BOLD,
         )
 
-        sorted_syscalls = sorted(
-            [
-                (
-                    syscall["name"],
-                    self.monitor.total_counts[syscall["name"]],
-                    self.monitor.peak_rates[syscall["name"]],
-                )
-                for syscall in self.monitor.syscalls
-            ],
-            key=lambda x: x[1],
-            reverse=True,
+        category_data = {}
+        for syscall in self.monitor.syscalls:
+            name = syscall["name"]
+            category = syscall.get("category", "uncategorized")
+            count = self.monitor.total_counts[name]
+            peak = self.monitor.peak_rates[name]
+
+            category_entry = category_data.setdefault(
+                category,
+                {
+                    "count": 0,
+                    "peak_rate": 0,
+                    "color": syscall.get("color"),
+                    "syscalls": [],
+                },
+            )
+            if category_entry.get("color") is None and syscall.get("color") is not None:
+                category_entry["color"] = syscall.get("color")
+
+            category_entry["count"] += count
+            category_entry["peak_rate"] += peak
+            category_entry["syscalls"].append(
+                {
+                    "name": name,
+                    "count": count,
+                    "peak": peak,
+                    "color": syscall.get("color", 0),
+                }
+            )
+
+        sorted_categories = sorted(
+            category_data.items(), key=lambda item: item[1]["count"], reverse=True
+        )
+
+        name_col_width = 16
+        count_col_width = 17
+        rate_num_width = 13
+        peak_num_width = 9
+
+        header_line = (
+            f"│ {'CATEGORY':<{name_col_width}} │ "
+            f"{'TOTAL CALLS':^{count_col_width}} │ "
+            f"{'AVG RATE (/s)':^{rate_num_width + 4}} │ "
+            f"{'PEAK RATE (/s)':^{peak_num_width + 4}} │"
+        )
+        divider_line = (
+            "├"
+            + "─" * (name_col_width + 2)
+            + "┼"
+            + "─" * (count_col_width + 2)
+            + "┼"
+            + "─" * (rate_num_width + 4)
+            + "┼"
+            + "─" * (peak_num_width + 4)
+            + "┤"
+        )
+        bottom_line = (
+            "└"
+            + "─" * (name_col_width + 2)
+            + "┴"
+            + "─" * (count_col_width + 2)
+            + "┴"
+            + "─" * (rate_num_width + 4)
+            + "┴"
+            + "─" * (peak_num_width + 4)
+            + "┘"
         )
 
         y_pos = 5
-        stdscr.addstr(
-            y_pos,
-            0,
-            "│ SYSCALL  │    TOTAL CALLS    │  RATE (per sec) │  PEAK RATE  │",
-            curses.A_BOLD,
-        )
+        stdscr.addstr(y_pos, 0, header_line, curses.A_BOLD)
         y_pos += 1
-        stdscr.addstr(
-            y_pos,
-            0,
-            (
-                "├──────────┼───────────────────┼"
-                "─────────────────┼─────────────┤"
-            ),
-            curses.A_NORMAL,
-        )
+        stdscr.addstr(y_pos, 0, divider_line, curses.A_NORMAL)
         y_pos += 1
 
-        for name, count, peak in sorted_syscalls:
-            for syscall in self.monitor.syscalls:
-                if syscall["name"] == name:
-                    color = syscall["color"]
-                    break
-
-            avg_rate = count / runtime if runtime > 0 else 0
-
-            syscall_line = (
-                f"│ {name:8s} │ {self.format_number(count):>17s} │ "
-                f"{avg_rate:13.2f}/s │ {peak:9.2f}/s │"
+        for index, (category, stats) in enumerate(sorted_categories):
+            avg_rate = stats["count"] / runtime if runtime > 0 else 0
+            category_line = (
+                f"│ {category:<{name_col_width}} │ "
+                f"{self.format_number(stats['count']):>{count_col_width}} │ "
+                f"{avg_rate:>{rate_num_width}.2f}/s │ "
+                f"{stats['peak_rate']:>{peak_num_width}.2f}/s │"
             )
-            stdscr.addstr(y_pos, 0, syscall_line, curses.color_pair(color))
+            stdscr.addstr(y_pos, 0, category_line, curses.A_BOLD)
             y_pos += 1
 
-        total_count = sum(self.monitor.total_counts.values())
-        total_rate = total_count / runtime if runtime > 0 else 0
-        max_peak = max(self.monitor.peak_rates.values())
+            syscall_entries = sorted(
+                stats["syscalls"], key=lambda entry: entry["count"], reverse=True
+            )
+            for entry in syscall_entries:
+                label = f"  {entry['name']}"
+                avg_rate = entry["count"] / runtime if runtime > 0 else 0
+                syscall_line = (
+                    f"│ {label:<{name_col_width}} │ "
+                    f"{self.format_number(entry['count']):>{count_col_width}} │ "
+                    f"{avg_rate:>{rate_num_width}.2f}/s │ "
+                    f"{entry['peak']:>{peak_num_width}.2f}/s │"
+                )
+                stdscr.addstr(
+                    y_pos,
+                    0,
+                    syscall_line,
+                    curses.color_pair(entry["color"]),
+                )
+                y_pos += 1
 
-        stdscr.addstr(
-            y_pos,
-            0,
-            "├──────────┼───────────────────┼─────────────────┼─────────────┤",
-            curses.A_NORMAL,
+            if index < len(sorted_categories) - 1:
+                stdscr.addstr(y_pos, 0, divider_line, curses.A_NORMAL)
+                y_pos += 1
+
+        total_count = sum(stats["count"] for stats in category_data.values())
+        total_rate = total_count / runtime if runtime > 0 else 0
+        max_peak = max(
+            (stats["peak_rate"] for stats in category_data.values()),
+            default=0,
         )
+
+        stdscr.addstr(y_pos, 0, divider_line, curses.A_NORMAL)
         y_pos += 1
         total_line = (
-            f"│ TOTAL    │ {self.format_number(total_count):>17s} │ "
-            f"{total_rate:13.2f}/s │ {max_peak:9.2f}/s │"
+            f"│ {'TOTAL':<{name_col_width}} │ "
+            f"{self.format_number(total_count):>{count_col_width}} │ "
+            f"{total_rate:>{rate_num_width}.2f}/s │ "
+            f"{max_peak:>{peak_num_width}.2f}/s │"
         )
         stdscr.addstr(y_pos, 0, total_line, curses.A_BOLD)
         y_pos += 1
-
-        stdscr.addstr(
-            y_pos,
-            0,
-            (
-                "└──────────┴───────────────────┴"
-                "─────────────────┴─────────────┘"
-            ),
-            curses.A_BOLD,
-        )
+        stdscr.addstr(y_pos, 0, bottom_line, curses.A_BOLD)
         y_pos += 2
 
         if total_count > 0:
-            stdscr.addstr(y_pos, 0, "Percentage breakdown:", curses.A_BOLD)
+            stdscr.addstr(y_pos, 0, "Category percentage breakdown:", curses.A_BOLD)
             y_pos += 1
 
             bar_start = 40
             bar_width = 55
 
-            for i, (name, count, _) in enumerate(sorted_syscalls):
-                if count > 0:
-                    for syscall in self.monitor.syscalls:
-                        if syscall["name"] == name:
-                            color = syscall["color"]
-                            break
+            for category, stats in sorted_categories:
+                if stats["count"] <= 0:
+                    continue
 
-                    percent = (count / total_count) * 100
-                    bar_len = int((percent / 100) * bar_width)
+                percent = (stats["count"] / total_count) * 100
+                bar_len = int((percent / 100) * bar_width)
 
-                    pct_line = (
-                        f"{name:8s}: {percent:5.1f}% "
-                        f"({self.format_number(count)} calls) "
-                    )
-                    stdscr.addstr(y_pos, 0, pct_line)
+                pct_line = (
+                    f"{category:<{name_col_width}}: {percent:5.1f}% "
+                    f"({self.format_number(stats['count'])} calls) "
+                )
+                stdscr.addstr(y_pos, 0, pct_line)
 
-                    for j in range(bar_len):
-                        if bar_start + j < max_x:
-                            stdscr.addch(
-                                y_pos,
-                                bar_start + j,
-                                "█",
-                                curses.color_pair(color),
-                            )
+                color = stats.get("color") or 0
+                attr = curses.color_pair(color) if color else curses.A_NORMAL
+                for j in range(bar_len):
+                    if bar_start + j < max_x:
+                        stdscr.addch(y_pos, bar_start + j, "█", attr)
 
-                    y_pos += 1
+                y_pos += 1
 
         y_pos += 1
         if y_pos < max_y:
