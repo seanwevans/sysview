@@ -1,4 +1,5 @@
 # SysView - Linux Syscall Monitoring Tool
+<img width="256" alt="perspective is not the chat bot's forte" src="https://github.com/user-attachments/assets/b36b719d-88eb-414e-9a78-e49f1846c151" />
 
 SysView is a powerful, curses-based Linux system call monitoring utility that provides real-time visualization of syscall activity on your system. It allows you to observe, track, and analyze which system calls are being made and at what rate, helping you understand application behavior, diagnose performance issues, and detect abnormal system activity.
 
